@@ -4,9 +4,13 @@
     "dev": "npx wrangler dev",
     "deploy": "npx wrangler deploy --minify",
     "pages:dev": "npx wrangler pages dev --port 8787 -c wrangler.pages.jsonc",
-    "pages:deploy": "npx wrangler pages deploy -c wrangler.pages.jsonc"
+    "pages:deploy": "npx wrangler pages deploy -c wrangler.pages.jsonc",
+    "build": "node scripts/build-worker.mjs",
+    "build:check": "node scripts/build-worker.mjs --check",
+    "test": "node --test && npm run build:check"
   },
   "dependencies": {
     "hono": "^4.10.6"
-  },"name": "wloc-spoofer"
+  },
+  "name": "wloc-spoofer"
 }

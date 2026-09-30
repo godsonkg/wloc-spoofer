@@ -1,3 +1,5 @@
+import { createCoordinateParser } from "./coordinates.js";
+
 export function getPageHtml() {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -144,6 +146,7 @@ body { font-family:-apple-system,system-ui,"SF Pro","Helvetica Neue",sans-serif;
   </div>
 </div>
 <script>
+const coordinateParser = (${createCoordinateParser.toString()})();
 const SAVE_API = 'https://gs-loc.apple.com/wloc-settings/save';
 const FAV_KEY = 'wloc_favorites';
 let lat = 22.544577, lon = 113.94114;
@@ -173,14 +176,18 @@ marker.on('dragend', e => { const p=e.target.getLatLng(); setPos(p.lat, p.lng); 
 map.on('click', e => { setPos(e.latlng.lat, e.latlng.lng); });
 
 function setPos(newLat, newLon) {
+  try { coordinateParser.validateCoords(newLat, newLon); }
+  catch { toast('无效坐标，请检查经纬度范围', 3000); return false; }
   lat = newLat; lon = newLon; selected = true;
   marker.setLatLng([lat, lon]);
   document.getElementById('coords').textContent = '经度 ' + lon.toFixed(6) + '  纬度 ' + lat.toFixed(6);
+  return true;
 }
 
 function moveTo(newLat, newLon, zoom) {
-  setPos(newLat, newLon);
+  if (!setPos(newLat, newLon)) return false;
   map.setView([lat, lon], zoom || 15);
+  return true;
 }
 
 function toast(msg, ms) {
@@ -352,23 +359,8 @@ function locateMe() {
 }
 
 function parseMapUrl(text) {
-  let m;
-  m = text.match(/ll=([0-9.-]+),([0-9.-]+)/);
-  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
-  m = text.match(/@([0-9.-]+),([0-9.-]+)/);
-  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
-  m = text.match(/lnglat=([0-9.-]+),([0-9.-]+)/);
-  if (m) return { lat: parseFloat(m[2]), lon: parseFloat(m[1]) };
-  m = text.match(/(?:location|center)=([0-9.-]+),([0-9.-]+)/);
-  if (m) return { lat: parseFloat(m[2]), lon: parseFloat(m[1]) };
-  m = text.match(/([0-9]+\\.[0-9]+)[,\\s]+([0-9]+\\.[0-9]+)/);
-  if (m) {
-    const a = parseFloat(m[1]), b = parseFloat(m[2]);
-    if (a < 90 && b > 90) return { lat: a, lon: b };
-    if (b < 90 && a > 90) return { lat: b, lon: a };
-    return { lat: a, lon: b };
-  }
-  return null;
+  try { return coordinateParser.extractFromString(text, { plainOrder: 'auto' }); }
+  catch { return null; }
 }
 
 function parseUrl() {

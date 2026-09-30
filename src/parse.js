@@ -1,42 +1,8 @@
-// 坐标解析: 接受地图链接(苹果地图 / 高德, 含短链), 抠出经纬度+名称。
-// 高德为 GCJ-02; 苹果地图在中国大陆同为 GCJ-02。两者都转 WGS84 再喂给 wloc;
-// gcj02ToWgs84 内含 out_of_china 判断, 境外坐标原样返回(无操作)。
+import { extractFromString, validateCoords } from "./coordinates.js";
+export { extractFromString, safeDecode, validateCoords } from "./coordinates.js";
 
-export function safeDecode(s) {
-  if (!s) return "";
-  try {
-    return decodeURIComponent(String(s).replace(/\+/g, " "));
-  } catch (e) {
-    return String(s);
-  }
-}
-
-// 从一段字符串里提取经纬度+名称。兼容:
-//  苹果地图 coordinate=/ll=/sll=纬度,经度  (名称在 name=...)
-//  高德 ?p=POIID,纬度,经度,名称,城市  (逗号或 %2C)
-//  高德 ?q=纬度,经度,名称           (新版分享链, 逗号或 %2C)
-//  纯文本 纬度,经度
-export function extractFromString(s) {
-  if (!s) return null;
-  const str = String(s);
-  let m;
-  m = str.match(/(?:coordinate|ll|sll)=(-?\d{1,3}\.\d+)(?:,|%2C)(-?\d{1,3}\.\d+)/i);
-  if (m) {
-    const nm = str.match(/[?&]name=([^&]+)/i);
-    return { lat: +m[1], lon: +m[2], name: nm ? safeDecode(nm[1]) : "", src: "apple" };
-  }
-  m = str.match(
-    /[?&]p=[^,&%]*(?:,|%2C)(-?\d{1,3}\.\d+)(?:,|%2C)(-?\d{1,3}\.\d+)(?:(?:,|%2C)((?:(?!,|%2C|&).)+))?/i
-  );
-  if (m) return { lat: +m[1], lon: +m[2], name: m[3] ? safeDecode(m[3]) : "", src: "amap" };
-  m = str.match(
-    /[?&]q=(-?\d{1,3}\.\d+)(?:,|%2C)(-?\d{1,3}\.\d+)(?:(?:,|%2C)((?:(?!,|%2C|&).)+))?/i
-  );
-  if (m) return { lat: +m[1], lon: +m[2], name: m[3] ? safeDecode(m[3]) : "", src: "amap" };
-  m = str.match(/(-?\d{1,3}\.\d{4,})\s*(?:,|%2C)\s*(-?\d{1,3}\.\d{4,})/);
-  if (m) return { lat: +m[1], lon: +m[2], name: "", src: "text" };
-  return null;
-}
+// Coordinate extraction is shared with the webpage. Network expansion and
+// coordinate-system policy remain API-only for backwards compatibility.
 
 // 接受原文(可能含中文地名+链接), 抠出 URL, 必要时跟随重定向展开短链, 提取坐标。
 export async function parseCoords(raw) {
@@ -115,8 +81,9 @@ function gcjDeltaLon(x, y) {
   return r;
 }
 
-// WGS84 -> GCJ-02 (正向偏移), 与高德/苹果中国所用偏移一致。
+// WGS84 -> GCJ-02 (正向偏移); 调用者需确认输入坐标系。
 export function wgs84ToGcj02(lat, lon) {
+  validateCoords(lat, lon);
   if (gcjOutOfChina(lon, lat)) return { lat, lon };
   let dLat = gcjDeltaLat(lon - 105.0, lat - 35.0);
   let dLon = gcjDeltaLon(lon - 105.0, lat - 35.0);
@@ -133,6 +100,7 @@ export function wgs84ToGcj02(lat, lon) {
 // 单程反算在偏移梯度大的地区会残留 1~2m, 这里用不动点迭代收敛到 <0.1m,
 // 与高德自身的 WGS84->GCJ 逆运算严格对齐, 消除回看时的残差。
 export function gcj02ToWgs84(lat, lon) {
+  validateCoords(lat, lon);
   if (gcjOutOfChina(lon, lat)) return { lat, lon };
   let wgsLat = lat;
   let wgsLon = lon;
