@@ -68,3 +68,7 @@ npm run build:check # 只检查，无文件写入
 地图图层使用第三方瓦片服务，搜索地点会请求 OpenStreetMap Nominatim；Leaflet 从 unpkg 加载。浏览器会向这些服务发送相应请求。解析 API 在需要展开链接时仍会由服务端请求输入的 URL；目前未新增域名白名单、总超时或响应体大小限制。不要把本次坐标校验当作服务端请求安全措施，公开部署前仍需单独评估这些限制及请求配额。
 
 本地测试使用模拟环境，不代表已在 Cloudflare、Surge、Loon 或 Quantumult X 上实测。仓库仍没有配套模块的安装链接或版本要求；写入设备、MITM 拦截和不同 App 的定位效果需要与实际模块一起验证。
+
+## 持续回归检查
+
+每次 push / pull request 会在 Node 22、24 上执行 `npm test`，也可手动运行 Actions。工作流只有读取权限，不部署、不使用 Secrets、不安装部署依赖。 WLOC 同时执行 `build:check`，防止独立 Worker 与源码不同步。
